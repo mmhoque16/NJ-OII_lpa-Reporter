@@ -1,0 +1,19 @@
+# --- AWS SDK ---
+# boto3 is pre-installed on AWS Lambda, but you need it for local testing.
+# We comment it out for deployment to save space, or leave it for local venv.
+boto3>=1.34.0
+
+# --- Web Scraping (Media Fetcher) ---
+# Required for controlling the Headless Chrome Layer.
+selenium>=4.21.0
+
+# Useful for making simple API calls or downloading files (Audio).
+requests>=2.31.0
+
+# --- Date Parsing (Router & Utils) ---
+# Helps parse "last Tuesday" or complex date strings into YYYY-MM-DD.
+python-dateutil>=2.8.2
+
+# --- Optional / Helper Utilities ---
+# If you use environment variables in local development (like .env files)
+python-dotenv>=1.0.0

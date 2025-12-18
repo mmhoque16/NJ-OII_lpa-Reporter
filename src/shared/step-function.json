@@ -1,0 +1,84 @@
+{
+  "Comment": "Legislative Media Processing Pipeline with Transcribe Polling Loop",
+  "StartAt": "MediaFetcher",
+  "States": {
+    "MediaFetcher": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:071126865717:function:media-fetcher",
+      "Next": "TranscriptGenerator",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 6,
+          "BackoffRate": 2
+        }
+      ]
+    },
+    "TranscriptGenerator": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:071126865717:function:LPA-Generating-Raw-Transcription",
+      "Next": "WaitForTranscript",
+      "InputPath": "$",
+      "ResultPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 0
+        }
+      ]
+    },
+    "WaitForTranscript": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "GetJobStatus"
+    },
+    "GetJobStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
+      "Parameters": {
+        "TranscriptionJobName.$": "$.job_name"
+      },
+      "ResultPath": "$.transcribe_status",
+      "Next": "CheckStatusChoice"
+    },
+    "CheckStatusChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.transcribe_status.TranscriptionJob.TranscriptionJobStatus",
+          "StringEquals": "COMPLETED",
+          "Next": "DiarizingLambda"
+        },
+        {
+          "Variable": "$.transcribe_status.TranscriptionJob.TranscriptionJobStatus",
+          "StringEquals": "FAILED",
+          "Next": "JobFailed"
+        }
+      ],
+      "Default": "WaitForTranscript"
+    },
+    "DiarizingLambda": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:071126865717:function:LPA-DiarizingTranscript",
+      "Next": "ReportGenerator"
+    },
+    "ReportGenerator": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:071126865717:function:LPA-Report-Generation",
+      "End": true
+    },
+    "JobFailed": {
+      "Type": "Fail",
+      "Cause": "AWS Transcribe Job Failed",
+      "Error": "TranscribeJobFailed"
+    }
+  }
+}
